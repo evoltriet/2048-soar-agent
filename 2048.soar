@@ -1,0 +1,143 @@
+rl -s learning on
+
+#get reward score
+sp {elaborate*get_reward
+    (state <s> ^type state)
+    (<s> ^reward-link <r>)
+    (<s> ^io <io>)
+    (<io> ^input-link.rewardscore <score>)
+-->
+    (write (crlf) | reward: |<score>)
+    (<r> ^reward.value <val>)
+}
+
+sp {propose*move_down
+    (state <s> ^type state)
+    (<s> ^io <io>)
+    (<io> ^input-link.<blockX>.value <val>)
+    (<io> ^input-link.<blockX>.value <> 0)
+    (<io> ^input-link.<blockX>.d <val>)
+-->
+    (<s> ^operator <o> + >)
+    (<o> ^name move_to_combine)
+    (<o> ^direction d)
+    (<o> ^reciprocal (/ 1 <val>))
+}
+
+sp {propose*move_right
+    (state <s> ^type state)
+    (<s> ^io <io>)
+    (<io> ^input-link.<blockX>.value <val>)
+    (<io> ^input-link.<blockX>.value <> 0)
+    (<io> ^input-link.<blockX>.r <val>)
+-->
+    (<s> ^operator <o> + >)
+    (<o> ^name move_to_combine)
+    (<o> ^direction r)
+    (<o> ^reciprocal (/ 1 <val>))
+}
+
+sp {apply*move_to_combine
+    (state <s> ^operator <o>
+               ^io <io>)
+    (<io> ^output-link <out>)
+    (<o> ^name move_to_combine)
+    (<o> ^direction <d>)
+    (<o> ^reciprocal <rec>)
+-->
+    (<out> ^otherlink.direction <d>)
+}
+
+gp {propose*move_favored
+    (state <s> ^type state)
+    (<s> ^io <io>)
+    (<io> ^input-link.<blockX>.name <name>)
+    (<io> ^input-link.<blockX>.value <val>)
+    (<io> ^input-link.change.count < 7)
+-->
+    (<s> ^operator <o> + =)
+    (<o> ^name move)
+    (<o> ^direction [ d r ])
+    (<o> ^reciprocal -1)
+}
+
+gp {propose*move_alt
+    (state <s> ^type state)
+    (<s> ^io <io>)
+    (<io> ^input-link.<blockX>.name <name>)
+    (<io> ^input-link.<blockX>.value <val>)
+    (<io> ^input-link.change.count >= 7)
+-->
+    (<s> ^operator <o> + =)
+    (<o> ^name move)
+    (<o> ^direction [ u l ])
+    (<o> ^reciprocal -1)
+}
+
+sp {apply*move
+    (state <s> ^operator <o>
+               ^io <io>)
+    (<io> ^output-link <out>)
+    (<o> ^name move)
+    (<o> ^direction <d>)
+    (<o> ^reciprocal <rec>)
+-->
+    (<out> ^otherlink.direction <d>)
+}
+
+#CLEAN Output Link
+sp {top*apply*cleanupOutput
+   (state <s> ^operator <op>
+              ^superstate nil
+              ^io.output-link <out>)
+   (<out> ^<cmd> <id>)
+   (<id> ^direction <dir>)
+   (<id> ^reciprocal <rec>)
+   (<id> ^status)
+-->
+   (<out> ^<cmd> <id> -)
+}
+
+### breaking impasses ###
+
+sp {propose*breakImpasse1
+    (state <s> ^type state)
+    (<s> ^impasse tie)
+    (<s> ^item <o1>)
+    (<s> ^item <o2>)
+    (<o1> ^name move_to_combine ^reciprocal <rec1>)
+    (<o2> ^name move_to_combine ^reciprocal <rec2> < <rec1>)
+    (<s> ^superstate <ss>)
+-->
+    (<ss> ^operator <o2> < <o1>)
+}
+
+sp {propose*breakImpasse2
+    (state <s> ^type state)
+    (<s> ^impasse tie)
+    (<s> ^item <o1>)
+    (<s> ^item <o2>)
+    (<o1> ^name move_to_combine ^reciprocal <rec1>)
+    (<o2> ^name move_to_combine ^reciprocal <rec2> >= <rec1>)
+    (<s> ^superstate <ss>)
+-->
+    (<ss> ^operator <o2> > <o1>)
+}
+
+
+### gp rule for reinforcement learning ###
+gp {rl*move
+    (state <s> ^type state ^operator <o> +)
+    (<o> ^name move)
+    (<o> ^direction <d>)
+-->
+    (<s> ^operator <o> = 0)
+}
+
+gp {rl*move_to_combine
+    (state <s> ^type state ^operator <o> +)
+    (<o> ^name move_to_combine)
+    (<o> ^direction <d>)
+-->
+    (<s> ^operator <o> = 0)
+}
